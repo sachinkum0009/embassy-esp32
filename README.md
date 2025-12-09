@@ -9,3 +9,10 @@ cargo build
 
 cargo run --release
 ```
+
+## To Do
+
+- [ ] Blinking LED
+- [ ] Button Controller LED
+- [ ] Sensor Data Logger
+
