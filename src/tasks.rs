@@ -3,6 +3,13 @@
 //! This module contains Embassy tasks for handling GPIO input and output operations,
 //! including button state monitoring and LED toggling.
 
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::mutex::Mutex;
+
+use alloc::sync::Arc;
+
+extern crate alloc;
+
 use esp_hal::gpio::{Input, Output};
 use embassy_time::{Duration, Timer};
 use defmt::info;
@@ -23,11 +30,18 @@ use defmt::info;
 /// spawner.spawn(check_btn(btn)).unwrap();
 /// ```
 #[embassy_executor::task]
-pub async fn check_btn(btn: Input<'static>) {
+pub async fn check_btn(led: Arc<Mutex<NoopRawMutex, Output<'static>>>, btn: Input<'static>) {
     loop {
+        let led_status = {
+            let guard = led.lock().await;
+            guard.is_set_high()
+        };
         let btn_val = btn.is_high();
         if btn_val {
             info!("Button 1 is high");
+            if led_status {
+                info!("both are working fine");
+            }
         } else {
             info!("Button 1 is low");
         }
@@ -50,9 +64,12 @@ pub async fn check_btn(btn: Input<'static>) {
 /// spawner.spawn(toggle_led(led)).unwrap();
 /// ```
 #[embassy_executor::task]
-pub async fn toggle_led(mut led: Output<'static>) {
+pub async fn toggle_led(led: Arc<Mutex<NoopRawMutex, Output<'static>>>) {
     loop {
-        led.toggle();
+        {
+            let mut guard = led.lock().await;
+            guard.toggle();
+        }
         Timer::after(Duration::from_secs(1)).await;
     }
 }

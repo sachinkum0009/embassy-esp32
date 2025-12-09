@@ -17,6 +17,11 @@ use defmt::info;
 
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
+use embassy_sync::mutex::Mutex;
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+
+use alloc::sync::Arc;
+// use embassy_sync::blocking_mutex::Mutex;
 
 use esp_backtrace as _;
 
@@ -29,12 +34,11 @@ use my_esp_project::tasks::{check_btn, toggle_led};
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
 
+// Wi-Fi Credentials
+const SSID: &str = "abc";
+const PASSWORD: &str = "123567890";
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
-    // Wi-Fi Credentials
-    let SSID = "abc";
-    let PWD = "1234567890";
-
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
@@ -59,8 +63,13 @@ async fn main(spawner: Spawner) {
     let input_config = InputConfig::default().with_pull(Pull::Down);
     let btn1 = Input::new(peripherals.GPIO5, input_config);
 
-    spawner.spawn(check_btn(btn1)).unwrap();
-    spawner.spawn(toggle_led(led)).unwrap();
+    let led_arc = Arc::new(Mutex::new(led));
+
+    // let led_mutex = Mutex::new(led);
+    // let btn_mutex = Mutex::new(btn1);
+
+    spawner.spawn(check_btn(led_arc.clone(), btn1)).unwrap();
+    spawner.spawn(toggle_led(led_arc)).unwrap();
 
     loop {
         Timer::after(Duration::from_secs(1)).await;
